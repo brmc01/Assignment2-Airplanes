@@ -1,0 +1,1 @@
+SourceImg = "Image.bmp"
