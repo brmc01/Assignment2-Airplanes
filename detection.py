@@ -1,6 +1,6 @@
 
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
 
 ROT_MIN, ROT_MAX, ROT_STEP = -45, 45, 9 
 THRESHOLD = 0.40
@@ -86,18 +86,12 @@ def _dedupe(hits):
     return kept
 
 
-def draw(rgb, hits, box=None, r=18):
+def draw(rgb, hits, box=None):
     img = Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8), "RGB")
     d = ImageDraw.Draw(img)
-    try:
-        font = ImageFont.truetype("arial.ttf", 16)
-    except Exception:
-        font = ImageFont.load_default()
 
-    if box:
-        d.rectangle(box, outline=(0, 255, 255), width=2)
-        d.text((box[0], box[1] - 16), "template", fill=(0, 255, 255), font=font)
-    for i, (score, y, x, angle) in enumerate(hits, 1):
-        d.ellipse([x - r, y - r, x + r, y + r], outline=(255, 0, 0), width=3)
-        d.text((x + r + 2, y - r), str(i), fill=(255, 255, 0), font=font)
+    # size the box like the template so it actually covers the plane
+    bw, bh = ((box[2] - box[0]) // 2, (box[3] - box[1]) // 2) if box else (30, 30)
+    for score, y, x, angle in hits:
+        d.rectangle([x - bw, y - bh, x + bw, y + bh], outline=(255, 0, 0), width=3)
     return img
