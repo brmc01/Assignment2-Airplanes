@@ -14,6 +14,33 @@ import glob
 import argparse
 import subprocess
 
+
+def _use_venv():
+    # Make sure we're running with the project's venv (which has numpy, etc).
+    # If VSCode/the terminal launched us with some other Python, re-run ourselves
+    # with the venv python. Build the venv first if it isn't there yet.
+    here = os.path.dirname(os.path.abspath(__file__))
+    vpy = os.path.join(here, "venv", "Scripts", "python.exe")   # windows
+    if not os.path.exists(vpy):
+        vpy = os.path.join(here, "venv", "bin", "python")       # mac / linux
+
+    already = os.path.exists(vpy) and \
+        os.path.normcase(os.path.realpath(sys.executable)) == os.path.normcase(os.path.realpath(vpy))
+    if already:
+        return
+
+    if not os.path.exists(vpy):
+        print("First run: setting up the environment (~1 min)...")
+        subprocess.run([sys.executable, "-m", "venv", os.path.join(here, "venv")], check=True)
+        subprocess.run([vpy, "-m", "pip", "install", "-q", "-r",
+                        os.path.join(here, "requirements.txt")], check=True)
+
+    # Re-run this script with the venv python (synchronous - works on Windows).
+    sys.exit(subprocess.run([vpy, os.path.abspath(__file__)] + sys.argv[1:]).returncode)
+
+
+_use_venv()
+
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
