@@ -1,5 +1,0 @@
-numpy>=1.26
-pillow>=10.0
-matplotlib>=3.8
-# Only needed to (re)generate Documentation.pdf with make_docs.py:
-pymupdf>=1.24

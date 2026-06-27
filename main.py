@@ -115,57 +115,50 @@ def run(show=True, open_output=True):
     print("Where are the Airplanes?\n")
 
     clean = load_rgb(find_image())
-    save_rgb(os.path.join(OUTPUT, "01_clean.png"), clean)
     clean_ycc = rgb_to_ycbcr(clean)
 
-    # Section 1 - add noise, then take it back off
+    # Section 1 - add gaussian noise, then blur it back off
     print("Section 1 - denoising")
     noisy_ycc = denoising.add_noise(clean_ycc)
     noisy = ycbcr_to_rgb(noisy_ycc)
-    save_rgb(os.path.join(OUTPUT, "02_noisy.png"), noisy)
+    save_rgb(os.path.join(OUTPUT, "01_noisy.png"), noisy)
 
-    denoised_ycc, spec_before, spec_after, peaks = denoising.denoise(noisy_ycc, want_spectrum=True)
+    denoised_ycc = denoising.denoise(noisy_ycc)
     denoised = ycbcr_to_rgb(denoised_ycc)
-    save_rgb(os.path.join(OUTPUT, "03_denoised.png"), denoised)
+    save_rgb(os.path.join(OUTPUT, "02_denoised.png"), denoised)
     print(f"  PSNR  noisy {psnr(clean, noisy):.1f} dB  ->  denoised {psnr(clean, denoised):.1f} dB")
 
     # Section 2 - cut out the template and go find the planes
     print("Section 2 - finding planes")
     l, t, r, b = TEMPLATE_BOX
     template = denoised[t:b, l:r]
-    save_rgb(os.path.join(OUTPUT, "04_template.png"), template)
+    save_rgb(os.path.join(OUTPUT, "03_template.png"), template)
 
-    hits, response = detection.find_planes(denoised_ycc, rgb_to_ycbcr(template))
+    hits, _ = detection.find_planes(denoised_ycc, rgb_to_ycbcr(template))
     print(f"  found {len(hits)} planes")
     for i, (score, y, x, angle) in enumerate(hits, 1):
         print(f"    {i:2d}. x={x:3d} y={y:3d}  score={score:.2f}  angle={angle:+d}")
 
-    response = np.clip(response, 0, 1)
-    plt.imsave(os.path.join(OUTPUT, "05_response.png"), response, cmap="inferno")
     marked = detection.draw(denoised, hits, box=TEMPLATE_BOX)
-    marked.save(os.path.join(OUTPUT, "06_detections.png"))
+    marked.save(os.path.join(OUTPUT, "04_detections.png"))
 
-    summary(clean, noisy, denoised, template, spec_before, spec_after, response, marked, show)
+    summary(noisy, denoised, template, marked, show)
     print(f"\nDone - everything saved in {OUTPUT}")
     if open_output:
         open_folder(OUTPUT)
 
 
-def summary(clean, noisy, denoised, template, spec_before, spec_after, response, marked, show):
+def summary(noisy, denoised, template, marked, show):
     u8 = lambda a: np.clip(a, 0, 255).astype(np.uint8)
     panels = [
-        (u8(clean), "Clean (from PDF)", None),
-        (u8(noisy), "Noisy (Y+Cb+Cr noise)", None),
-        (u8(denoised), "Denoised", None),
-        (u8(template), "Airplane template", None),
-        (spec_before, "Cr spectrum (noisy)", "gray"),
-        (spec_after, "Cr spectrum (notched)", "gray"),
-        (response, "Match response", "inferno"),
-        (np.asarray(marked), "Airplanes found", None),
+        (u8(noisy), "Noisy (gaussian)"),
+        (u8(denoised), "Denoised"),
+        (u8(template), "Template used"),
+        (np.asarray(marked), "Planes found"),
     ]
-    fig, ax = plt.subplots(2, 4, figsize=(18, 9))
-    for a, (img, title, cmap) in zip(ax.ravel(), panels):
-        a.imshow(img, cmap=cmap)
+    fig, ax = plt.subplots(1, 4, figsize=(18, 5))
+    for a, (img, title) in zip(ax.ravel(), panels):
+        a.imshow(img)
         a.set_title(title)
         a.axis("off")
     fig.tight_layout()

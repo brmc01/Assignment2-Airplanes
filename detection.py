@@ -1,21 +1,15 @@
-# Section 2 - find the parked planes. Cut one plane out as a template, slide it
-# over the image at a bunch of angles, and score how well it matches everywhere
-# with normalized cross-correlation (written by hand).
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
-ROT_MIN, ROT_MAX, ROT_STEP = -45, 45, 9   # angles to try, every 9 degrees
-THRESHOLD = 0.46         # how good a match has to be to count as a plane
-MIN_GAP = 36             # closest two separate planes can be (pixels)
+ROT_MIN, ROT_MAX, ROT_STEP = -45, 45, 9 
+THRESHOLD = 0.40
+MIN_GAP = 36            
 MAX_PLANES = 14
-WEIGHTS = (0.6, 0.2, 0.2)   # how much Y, Cb, Cr each count toward the score
+WEIGHTS = (0.6, 0.2, 0.2)
 
 
 def ncc(image, template, mask):
-    # normalized cross-correlation, Gonzalez eq 12.2-8. Score is in [-1, 1] and
-    # ignores overall brightness, so it matches shape - a plane in shadow still
-    # matches one in the sun.
     image = image.astype(float)
     template = template.astype(float)
     th, tw = template.shape
@@ -23,15 +17,13 @@ def ncc(image, template, mask):
 
     n = mask.sum()
     t_mean = (template * mask).sum() / n
-    t0 = (template - t_mean) * mask        # zero-mean template
+    t0 = (template - t_mean) * mask
     t_energy = (t0 ** 2).sum()
 
-    # top of the fraction: correlate image with the template, fast via the FFT
     F = np.fft.rfft2(image, (h, w))
-    T = np.fft.rfft2(t0[::-1, ::-1], (h, w))    # flip so convolution == correlation
+    T = np.fft.rfft2(t0[::-1, ::-1], (h, w))
     top = np.fft.irfft2(F * T, (h, w))[th - 1:h, tw - 1:w]
 
-    # bottom: how much the image varies under each window, via running sums
     s = _running_sum(image)
     s2 = _running_sum(image ** 2)
     win_sum = _box(s, th, tw)
@@ -49,7 +41,6 @@ def _running_sum(a):
 
 
 def _box(s, th, tw):
-    # sum over every th x tw window using the running-sum table
     return s[th:, tw:] - s[:-th, tw:] - s[th:, :-tw] + s[:-th, :-tw]
 
 
@@ -65,15 +56,13 @@ def find_planes(image, template):
     hits = []
 
     for angle in range(ROT_MIN, ROT_MAX + 1, ROT_STEP):
-        # rotate each channel; the mask marks the real pixels vs the blank corners
-        # the rotation adds, so those corners don't mess up the score
         chans = [_rotate(template[..., c], angle, float(template[..., c].mean())) for c in range(3)]
         mask = (_rotate(np.ones(template.shape[:2]), angle, 0) > 0.5).astype(float)
         th, tw = mask.shape
 
         score = sum(WEIGHTS[c] * ncc(image[..., c], chans[c], mask) for c in range(3))
 
-        # the score map is anchored at the window's top-left; shift to its centre
+
         oy, ox = th // 2, tw // 2
         gh, gw = score.shape
         np.maximum(best[oy:oy + gh, ox:ox + gw], score, out=best[oy:oy + gh, ox:ox + gw])
@@ -86,7 +75,7 @@ def find_planes(image, template):
 
 
 def _dedupe(hits):
-    # one plane lights up a whole blob of pixels - keep only the strongest per area
+
     hits.sort(reverse=True)
     kept = []
     for score, y, x, angle in hits:
