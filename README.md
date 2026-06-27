@@ -4,8 +4,7 @@ Assignment 2 (Image Processing, Prof. Zaghetto, UnB). It (1) adds **gaussian
 noise** to the airport image and **blurs it back off**, then (2) **finds the
 parked planes** with a hand-written normalized cross-correlation template matcher.
 
-The whole thing is three Python files. There's a longer writeup in
-**`Documentation.pdf`**.
+The whole thing is three Python files.
 
 ## What it does
 
